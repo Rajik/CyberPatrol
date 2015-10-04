@@ -103,7 +103,7 @@ def getLatLong(area):
 def exportData(rest_json):
 	print("*******")
 	print(rest_json)
-	con = pycps.Connection('tcp://cloud-eu-0.clusterpoint.com:9007', 'CyberPatrol', 'radhikab@thoughtworks.com', 'radhikab', '1201')
+	con = pycps.Connection('tcp://cloud-eu-0.clusterpoint.com:9007', 'CyberPatrolProd', 'radhikab@thoughtworks.com', 'radhikab', '1201')
 	listing = ast.literal_eval(rest_json)
 	for j in listing:
 		print(j)
