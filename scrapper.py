@@ -8,27 +8,31 @@ import urllib
 import json
 import sys
 import pycps
+import ast
 
 result = []
 crime_map = {}
 start = "/url?q="
 end = "&"
 final1 = []
+rest_json1 = []
 
 @route('/all_sambavams')
 def crimes():
 	pruneDataSet()
-	for i in range(0,99):
+	for i in range(0,50):
 		scrap(i*10)
 	print("=================================================")
 	groupByArea([x for x in final1 if x is not None])
 	rest_json = constructJson(crime_map)
-	print(rest_json)
+	print(type(rest_json))
+	exportData(rest_json)
 	return rest_json
 
 
 def constructJson(crime_map):
-	rest_json = []
+	
+	index = 1
 	for map in crime_map:
 		temp = {}
 		temp["name"] = map
@@ -36,11 +40,12 @@ def constructJson(crime_map):
 		print(getLatLong(map))
 		latLong = getLatLong(map).split(',')
 		if len(latLong) > 0:
-			temp["lattitude"] = latLong[0]
-			temp["longitude"] = latLong[1]
-		temp["sambavams"] = crime_map[map]
-		rest_json.append(temp)
-	return json.dumps(rest_json) 
+			temp["lat"] = latLong[0]
+			temp["long"] = latLong[1]
+		temp["occurences"] = str(crime_map[map])
+		rest_json1.append({index : temp})
+		index = index + 1
+	return json.dumps(rest_json1) 
 
 def groupByArea(final_crimes):
 	for crime in final_crimes:
@@ -50,49 +55,58 @@ def groupByArea(final_crimes):
 			crime_map[crime] = 0
 
 def scrap(index):
-	base_url = "https://www.google.co.in/search?q=chennai%20accidents&tbm=nws&start="+str(index)
+	base_url = "https://www.google.co.in/search?q=bangalore%20accidents&tbm=nws&start="+str(index)
 	web_page = requests.get(base_url)
 	parsed_content = PyQuery(web_page.text)
 	all_crimes = parsed_content('a')
 	for crime in all_crimes:
 		crime_url = crime.attrib["href"]
+		print(crime_url)
 		if '/url?q=' in crime_url:
 			try:
+				url = (crime_url.split(start))[1].split(end)[0]
 				article = Article((crime_url.split(start))[1].split(end)[0])
+				print(url)
 				article.download()
 				article.parse()
-				article.nlp()
-				keywords = article.keywords
-				area_name = findLocation(keywords)
+
+				text = article.text
+				print("TEXTTT")
+				print(text)
+				print("TEXTTTEND")
+				area_name = findLocation(text)
 				final1.append(area_name)
 			except Exception:
 				pass
 
 def pruneDataSet():
-	with open('chennai.csv', 'rt') as csvfile:
+	with open('bangalore.csv', 'rt') as csvfile:
 		spamreader = csv.reader(csvfile, delimiter=',')
 		for row in spamreader:
 			result.append(row[0].lower())
 
-def findLocation(keywords):
-	for key in keywords:
-		for res in result:
-			for word in res.split():
-				if key == word:
-					return res
+def findLocation(text):
+	for res in result:
+		if text.lower().find(res) > 0:
+			return res
 
 def getLatLong(area):
 	api_key = 'AIzaSyDOjBGZEBvLCpHXkNvl-bBBxKHhzAeSaqU'
 	area = area.replace(" ", "%20")
-	url = 'https://maps.googleapis.com/maps/api/geocode/json?address='+area+'%20chennai&key='+api_key
-	response = json.loads(urllib.request.urlopen(url).read().decode('utf-8'))
+	url = 'https://maps.googleapis.com/maps/api/geocode/json?address='+area+'%20bangalore&key='+api_key
+	response = json.loads(urllib.urlopen(url).read().decode('utf-8'))
 	if len(response["results"]) > 0:
 		co_ord=response["results"][0]["geometry"]["location"]
 		latLong = str(co_ord["lat"]) + "," + str(co_ord["lng"])
 		return latLong
 
-def exportData():
-	con = pycps.Connection('tcp://cloud-eu-0.clusterpoint.com:9007', 'Vibathu', 'deepasaj@thoughtworks.com', 'admin123', '100643')
-	con.insert(crime_map)
+def exportData(rest_json):
+	print("*******")
+	print(rest_json)
+	con = pycps.Connection('tcp://cloud-eu-0.clusterpoint.com:9007', 'CyberPatrol', 'radhikab@thoughtworks.com', 'radhikab', '1201')
+	listing = ast.literal_eval(rest_json)
+	for j in listing:
+		print(j)
+		con.insert(j)
 
 run(host='localhost', port= 8080, debug=True)
